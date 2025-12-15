@@ -1,0 +1,18 @@
+{
+  "name": "furigana-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts":{
+  "start": "node server.js",  // <--- 告诉 npm 如何启动您的程序
+  "test": "echo \"Error: no test specified\" && exit 1"
+},,
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.2.1",
+    "kuromoji": "^0.1.2"
+  }
+}

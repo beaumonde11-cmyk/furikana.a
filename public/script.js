@@ -1,0 +1,58 @@
+// public/script.js
+
+document.addEventListener('DOMContentLoaded', () => {
+    const inputField = document.getElementById('japanese-input');
+    const annotateButton = document.getElementById('annotate-button');
+    const resultBox = document.getElementById('result-box');
+
+    // 核心函数：发送请求到后端
+    const fetchAnnotation = async () => {
+        const text = inputField.value.trim();
+        if (!text) {
+            resultBox.innerHTML = "请输入日文文本。";
+            return;
+        }
+
+        resultBox.innerHTML = "正在处理中...";
+        annotateButton.disabled = true;
+
+        try {
+            // 向后端定义的 /api/annotate 路由发送 POST 请求
+            const response = await fetch('/api/annotate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ text: text })
+            });
+
+            if (!response.ok) {
+                // 如果 HTTP 状态码不是 200 范围，抛出错误
+                throw new Error(`HTTP 错误！状态码: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            // 将后端返回的 HTML 字符串（包含 <ruby> 标签）插入到结果区域
+            resultBox.innerHTML = data.html; 
+
+        } catch (error) {
+            console.error('标注请求失败:', error);
+            resultBox.innerHTML = `处理失败。请检查后端服务器是否正在运行。错误信息: ${error.message}`;
+        } finally {
+            annotateButton.disabled = false;
+        }
+    };
+
+    // 事件监听 1: 点击按钮
+    annotateButton.addEventListener('click', fetchAnnotation);
+
+    // 事件监听 2: 监听 Enter 键
+    inputField.addEventListener('keydown', (event) => {
+        // 检查是否是 Enter 键，并且不是 Shift + Enter（通常用于换行）
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault(); // 阻止默认的换行行为
+            fetchAnnotation();
+        }
+    });
+});

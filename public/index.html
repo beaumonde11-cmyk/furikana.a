@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>日语假名标注器</title>
+    <style>
+        /* 简单的样式，让假名更清晰 */
+        body { font-family: sans-serif; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        textarea { width: 100%; height: 150px; margin-bottom: 10px; font-size: 18px; padding: 10px; }
+        #result-box { 
+            border: 1px solid #ccc; 
+            min-height: 100px; 
+            padding: 20px; 
+            font-size: 24px; 
+            line-height: 2;
+        }
+        /* 使假名（<rt> 标签）更小 */
+        rt { font-size: 0.5em; color: #555; } 
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>日语假名标注 (Furigana)</h1>
+        
+        <textarea id="japanese-input" 
+                  placeholder="请输入日文句子，然后按 Enter 键（或点击按钮）"
+                  autofocus></textarea>
+        
+        <button id="annotate-button">标注假名</button>
+
+        <h2>标注结果：</h2>
+        <div id="result-box">
+            在此处显示带假名的结果...
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
