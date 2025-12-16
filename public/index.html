@@ -1,51 +1,107 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>日语假名标注器</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日文学习工具</title>
     <style>
-        /* 简单的样式，让假名更清晰 */
-        body { font-family: sans-serif; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; }
-        textarea { width: 100%; height: 150px; margin-bottom: 10px; font-size: 18px; padding: 10px; }
-        #result-box { 
-            border: 1px solid #ccc; 
-            min-height: 100px; 
-            padding: 20px; 
-            font-size: 24px; 
-            line-height: 2;
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
         }
-        /* 使假名（<rt> 标签）更小 */
-        rt { font-size: 0.5em; color: #555; } 
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        h1, h2 {
+            color: #007bff;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+            margin-bottom: 20px;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            resize: vertical;
+            min-height: 150px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 20px;
+            margin-right: 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        button:disabled {
+            background-color: #999;
+            cursor: not-allowed;
+        }
+        .result-box, .output-box {
+            border: 1px dashed #007bff;
+            padding: 15px;
+            margin-top: 20px;
+            background-color: #e9f7ff;
+            min-height: 50px;
+            border-radius: 4px;
+            line-height: 1.8;
+            font-size: 16px;
+        }
+        .output-box {
+            border: 1px dashed #ffc107;
+            background-color: #fff9e6;
+        }
+        /* ruby 标签样式，使注音更清晰 */
+        ruby {
+            margin-right: 5px;
+        }
+        rt {
+            font-size: 0.6em;
+            color: #d9534f;
+            line-height: 1;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>日语假名标注 (Furigana)</h1>
+        <h1>日文文本处理工具</h1>
         
-        <textarea id="japanese-input" 
-                  placeholder="请输入日文句子，然后按 Enter 键（或点击按钮）"
-                  autofocus></textarea>
+        <h2>输入日文文本</h2>
+        <textarea id="japanese-input" placeholder="请在此粘贴或输入日文文本..." autofocus></textarea>
         
-        <button id="annotate-button">标注假名</button>
+        <button id="annotate-button">标注假名 (Furigana)</button>
+        <button id="translate-button">翻译成中文</button>
 
-        <h2>标注结果：</h2>
-        <div id="result-box">
-            在此处显示带假名的结果...
+        <hr>
+
+        <h2>注音结果</h2>
+        <div id="result-box" class="result-box">
+            在此显示带注音（<ruby>汉字<rt>假名</rt></ruby>）的文本...
         </div>
+
+        <h2>中文翻译结果</h2>
+        <div id="chinese-output" class="output-box">
+            在此显示中文翻译结果...
+        </div>
+
     </div>
-    
+
     <script src="script.js"></script>
 </body>
 </html>
-<h3>日文到中文翻译</h3>
-<textarea id="japanese-input-translate" placeholder="输入日文文本"></textarea>
-<button onclick="translateJapanese()">翻译</button>
-<div id="chinese-output"></div>
-<hr style="margin: 30px 0;">
-
-<h2>日文到中文翻译</h2>
-<textarea id="japanese-input-translate" rows="5" placeholder="在此输入需要翻译的日文文本..."></textarea><br>
-<button onclick="translateJapanese()">翻译成中文</button>
-<div id="chinese-output" style="margin-top: 15px; padding: 10px; border: 1px solid #ccc; white-space: pre-wrap;">
-    </div>
