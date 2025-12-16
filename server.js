@@ -127,3 +127,27 @@ app.post('/translate', async (req, res) => {
 })
 const translate = require('@vitalets/google-translate-api');
 // ... 其他 require 语句（如 express, path 等）
+// 1. 替换导入语句
+const translate = require('translate');
+
+// 2. 配置翻译源 (使用 Google 作为默认引擎)
+translate.engine = 'google'; 
+translate.from = 'ja'; 
+
+// 3. 修改翻译路由的调用逻辑
+app.post('/translate', async (req, res) => {
+    const japaneseText = req.body.text; 
+    // ... 检查文本的代码保持不变
+
+    try {
+        // 调用新的翻译库：目标语言设为 'zh'
+        const translatedText = await translate(japaneseText, { to: 'zh' });
+        
+        // 成功返回翻译结果
+        res.json({ translation: translatedText });
+
+    } catch (error) {
+        console.error('Translation API error (new library):', error);
+        res.status(500).json({ error: 'Failed to perform translation (via new library).' });
+    }
+});
