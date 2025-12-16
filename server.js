@@ -24,6 +24,30 @@ kuromoji.builder({ dicPath: "node_modules/kuromoji/dict" }).build(function (err,
     }
     tokenizer = _tokenizer;
     console.log("Kuromoji 分词器加载成功。");
+    // 日文到中文翻译 API
+app.post('/translate', async (req, res) => {
+    // 假设客户端发送的 JSON 格式是 { "text": "日文文本" }
+    const japaneseText = req.body.text; 
+
+    if (!japaneseText) {
+        return res.status(400).json({ error: 'Missing Japanese text for translation.' });
+    }
+
+    try {
+        // 调用新的翻译库：从 'ja' (日文) 翻译到 'zh-cn' (简体中文)
+        // 注意：这个库的调用返回格式，我们直接解构 { text }
+        const { text } = await translate(japaneseText, { from: 'ja', to: 'zh-cn' });
+        
+        // 成功返回翻译结果
+        res.json({ translation: text });
+
+    } catch (error) {
+        console.error('Translation API error:', error);
+        res.status(500).json({ error: 'Failed to perform translation via third-party API. Check server logs.' });
+    }
+});
+
+// ... (其他路由和 app.listen 语句)
 
     // 词典加载完成后，才启动服务器
     app.listen(port, () => {
@@ -82,3 +106,24 @@ function katakanaToHiragana(katakana) {
         return String.fromCharCode(charCode);
     });
 }
+app.post('/translate', async (req, res) => {
+    const japaneseText = req.body.text;
+
+    if (!japaneseText) {
+        return res.status(400).json({ error: 'Missing Japanese text' });
+    }
+
+    try {
+        // **这里是调用实际翻译 API 的代码**
+        // 假设我们使用一个名为 translateText 的函数
+        const translatedText = await translateText(japaneseText, 'zh'); // 目标语言设为中文 'zh'
+
+        res.json({ translation: translatedText });
+
+    } catch (error) {
+        console.error('Translation error:', error);
+        res.status(500).json({ error: 'Failed to perform translation' });
+    }
+})
+const translate = require('@vitalets/google-translate-api');
+// ... 其他 require 语句（如 express, path 等）

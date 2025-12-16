@@ -56,3 +56,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+async function translateJapanese() {
+    const text = document.getElementById('japanese-input-translate').value;
+    const outputDiv = document.getElementById('chinese-output');
+    outputDiv.innerHTML = '正在翻译...';
+
+    try {
+        const response = await fetch('/translate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: text })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+            outputDiv.innerHTML = `翻译错误: ${data.error}`;
+        } else {
+            outputDiv.innerHTML = `中文翻译: ${data.translation}`;
+        }
+
+    } catch (error) {
+        outputDiv.innerHTML = '网络请求失败。';
+    }
+}
