@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputField = document.getElementById('japanese-input');
     const annotateButton = document.getElementById('annotate-button');
     const resultBox = document.getElementById('result-box');
+    const translateButton = document.getElementById('translate-button'); // 假设您的翻译按钮ID是这个
 
     const fetchAnnotation = async () => {
         const text = inputField.value.trim();
@@ -47,6 +48,11 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchAnnotation();
         }
     });
+
+    // 绑定翻译按钮事件
+    if (translateButton) {
+        translateButton.addEventListener('click', translateJapanese);
+    }
 });
 
 async function translateJapanese() {
@@ -60,24 +66,28 @@ async function translateJapanese() {
 
     outputDiv.innerHTML = '正在调用翻译服务...';
 
+    // 使用 Google Translate API 的公共接口进行翻译 (纯前端实现)
+    const sourceLang = 'ja'; // 源语言：日语
+    const targetLang = 'zh-CN'; // 目标语言：简体中文
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+
     try {
-        // 由于后端已移除 /translate 路由，此请求将失败，但我们保持代码结构
-        const response = await fetch('/translate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: text })
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            outputDiv.innerHTML = `**中文翻译:**<br>${data.translation}`;
-        } else {
-            outputDiv.innerHTML = `翻译失败: ${data.error || '未知错误'}`;
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+             throw new Error(`Google API 错误！状态码: ${response.status}`);
         }
+        
+        const data = await response.json();
+        
+        // Google API 返回的数据结构是嵌套数组
+        // 翻译结果在 data[0][0][0]
+        const translatedText = data[0].map(segment => segment[0]).join('');
+
+        outputDiv.innerHTML = `**中文翻译:**<br>${translatedText}`;
 
     } catch (error) {
-        outputDiv.innerHTML = '网络请求失败或服务器无响应。';
+        outputDiv.innerHTML = '翻译失败。请检查网络连接。';
         console.error('Fetch error:', error);
     }
 }
