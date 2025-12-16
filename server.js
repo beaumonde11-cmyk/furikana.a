@@ -1,6 +1,6 @@
 // 导入所需模块
 const express = require('express');
-const path = require('path');
+const path = require('path'); // 确保引入 path 模块
 const kuromoji = require('kuromoji'); // 用于日文分词和注音
 
 // --- 移除所有翻译库的 require --- 
@@ -20,19 +20,27 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Kuromoji 构建器（只需要初始化一次）
 let tokenizer = null;
 
-kuromoji.builder({ dicPath: 'node_modules/kuromoji/dict' }).build((err, t) => {
-    if (err) {
-        console.error('Kuromoji Initialization Error:', err);
-        return;
-    }
-    tokenizer = t;
-    console.log('Kuromoji tokenizer initialized.');
+// 使用 path.join 确保跨平台的字典路径兼容性，这是解决 Render 404 问题的关键修正
+const dicPath = path.join(__dirname, 'node_modules', 'kuromoji', 'dict'); 
 
-    // Kuromoji 初始化成功后，启动 Express 服务器
+kuromoji.builder({ dicPath: dicPath }).build((err, t) => {
+    if (err) {
+        // 如果出错，打印更详细的信息
+        console.error('Kuromoji Initialization Error:', err);
+        console.error('Attempted dictionary path:', dicPath);
+        // Kuromoji 失败不应该阻止服务器启动，但会导致 /furigana 不可用
+        // 为了确保应用启动，我们继续，但会记录错误。
+    } else {
+        tokenizer = t;
+        console.log('Kuromoji tokenizer initialized.');
+    }
+    
+    // Kuromoji 尝试初始化后，启动 Express 服务器
     app.listen(port, () => {
         console.log(`Server running at http://localhost:${port}`);
     });
 });
+
 
 // 根路由：返回 index.html
 app.get('/', (req, res) => {
@@ -41,8 +49,10 @@ app.get('/', (req, res) => {
 
 // Furigana 注音转换 API 路由
 app.post('/furigana', (req, res) => {
+    // 检查 tokenizer 是否成功初始化
     if (!tokenizer) {
-        return res.status(503).json({ error: 'Furigana service is not ready.' });
+        // 如果初始化失败，返回 503 错误
+        return res.status(503).json({ error: 'Furigana service is not ready. Kuromoji initialization failed.' });
     }
 
     const japaneseText = req.body.text;
@@ -59,7 +69,7 @@ app.post('/furigana', (req, res) => {
             const reading = token.reading; // 片假名读音
 
             // 检查是否是汉字且有平假名读音
-            if (token.pos === '名詞' || token.pos === '動詞' || token.pos === '形容詞' || token.pos === '副詞') {
+            if (token.pos === '名詞' || token.pos === '動詞' || token.pos === '形容詞' || token.pos === '副詞' || token.pos_detail_1 === '数詞') {
                  if (reading && reading !== surface) {
                     // 将片假名转换为平假名 (Furigana)
                     const furigana = reading.replace(/[\u30a1-\u30f6]/g, function(match) {
