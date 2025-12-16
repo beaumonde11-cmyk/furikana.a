@@ -1,11 +1,8 @@
-// public/script.js
-
 document.addEventListener('DOMContentLoaded', () => {
     const inputField = document.getElementById('japanese-input');
     const annotateButton = document.getElementById('annotate-button');
     const resultBox = document.getElementById('result-box');
 
-    // 核心函数：发送请求到后端
     const fetchAnnotation = async () => {
         const text = inputField.value.trim();
         if (!text) {
@@ -17,8 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
         annotateButton.disabled = true;
 
         try {
-            // 向后端定义的 /api/annotate 路由发送 POST 请求
-            const response = await fetch('/api/annotate', {
+            // 修正后的路由：必须与 server.js 中的 app.post('/furigana') 匹配
+            const response = await fetch('/furigana', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -27,13 +24,11 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (!response.ok) {
-                // 如果 HTTP 状态码不是 200 范围，抛出错误
                 throw new Error(`HTTP 错误！状态码: ${response.status}`);
             }
 
             const data = await response.json();
             
-            // 将后端返回的 HTML 字符串（包含 <ruby> 标签）插入到结果区域
             resultBox.innerHTML = data.html; 
 
         } catch (error) {
@@ -44,42 +39,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // 事件监听 1: 点击按钮
     annotateButton.addEventListener('click', fetchAnnotation);
 
-    // 事件监听 2: 监听 Enter 键
     inputField.addEventListener('keydown', (event) => {
-        // 检查是否是 Enter 键，并且不是 Shift + Enter（通常用于换行）
         if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault(); // 阻止默认的换行行为
+            event.preventDefault();
             fetchAnnotation();
         }
     });
 });
-async function translateJapanese() {
-    const text = document.getElementById('japanese-input-translate').value;
-    const outputDiv = document.getElementById('chinese-output');
-    outputDiv.innerHTML = '正在翻译...';
 
-    try {
-        const response = await fetch('/translate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: text })
-        });
-
-        const data = await response.json();
-
-        if (data.error) {
-            outputDiv.innerHTML = `翻译错误: ${data.error}`;
-        } else {
-            outputDiv.innerHTML = `中文翻译: ${data.translation}`;
-        }
-
-    } catch (error) {
-        outputDiv.innerHTML = '网络请求失败。';
-    }
-}
 async function translateJapanese() {
     const text = document.getElementById('japanese-input-translate').value;
     const outputDiv = document.getElementById('chinese-output');
@@ -92,6 +61,7 @@ async function translateJapanese() {
     outputDiv.innerHTML = '正在调用翻译服务...';
 
     try {
+        // 由于后端已移除 /translate 路由，此请求将失败，但我们保持代码结构
         const response = await fetch('/translate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
