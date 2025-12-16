@@ -1,153 +1,92 @@
-// server.js
-
+// 导入所需模块
 const express = require('express');
-const kuromoji = require('kuromoji');
 const path = require('path');
+const kuromoji = require('kuromoji'); // 用于日文分词和注音
+
+// --- 移除所有翻译库的 require --- 
+// const translate = require('...');
+// const BaiduTranslate = require('...'); 
+// ----------------------------------
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000; // 监听的端口
 
-// 中间件：允许 Express 解析 JSON 请求体
-app.use(express.json()); 
+// 确保 Express 可以解析 JSON 格式的请求体
+app.use(express.json());
 
-// 中间件：服务静态文件（让用户可以访问 public 文件夹里的 index.html 和 script.js）
+// 静态文件服务：将 'public' 目录设置为静态资源目录
 app.use(express.static(path.join(__dirname, 'public')));
 
-let tokenizer = null; // 用于存储 Kuromoji 分词器实例
+// Kuromoji 构建器（只需要初始化一次）
+let tokenizer = null;
 
-// --- 1. 初始化 Kuromoji 分词器 ---
-// Kuromoji 需要加载词典，这是一个异步操作，只应执行一次
-kuromoji.builder({ dicPath: "node_modules/kuromoji/dict" }).build(function (err, _tokenizer) {
+kuromoji.builder({ dicPath: 'node_modules/kuromoji/dict' }).build((err, t) => {
     if (err) {
-        console.error("Kuromoji 初始化失败:", err);
+        console.error('Kuromoji Initialization Error:', err);
         return;
     }
-    tokenizer = _tokenizer;
-    console.log("Kuromoji 分词器加载成功。");
-    // 日文到中文翻译 API
-app.post('/translate', async (req, res) => {
-    // 假设客户端发送的 JSON 格式是 { "text": "日文文本" }
-    const japaneseText = req.body.text; 
+    tokenizer = t;
+    console.log('Kuromoji tokenizer initialized.');
 
-    if (!japaneseText) {
-        return res.status(400).json({ error: 'Missing Japanese text for translation.' });
-    }
-
-    try {
-        // 调用新的翻译库：从 'ja' (日文) 翻译到 'zh-cn' (简体中文)
-        // 注意：这个库的调用返回格式，我们直接解构 { text }
-        const { text } = await translate(japaneseText, { from: 'ja', to: 'zh-cn' });
-        
-        // 成功返回翻译结果
-        res.json({ translation: text });
-
-    } catch (error) {
-        console.error('Translation API error:', error);
-        res.status(500).json({ error: 'Failed to perform translation via third-party API. Check server logs.' });
-    }
-});
-
-// ... (其他路由和 app.listen 语句)
-
-    // 词典加载完成后，才启动服务器
+    // Kuromoji 初始化成功后，启动 Express 服务器
     app.listen(port, () => {
-        console.log(`服务器启动在 http://localhost:${port}`);
+        console.log(`Server running at http://localhost:${port}`);
     });
 });
 
-// --- 2. 假名标注 API 路由 ---
-app.post('/api/annotate', (req, res) => {
+// 根路由：返回 index.html
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Furigana 注音转换 API 路由
+app.post('/furigana', (req, res) => {
     if (!tokenizer) {
-        return res.status(503).json({ error: "分词器尚未加载完成。" });
+        return res.status(503).json({ error: 'Furigana service is not ready.' });
     }
 
-    const { text } = req.body;
-
-    if (!text || typeof text !== 'string') {
-        return res.status(400).json({ error: "请求体中需要包含 'text' 字段。" });
-    }
-
-    // 使用 Kuromoji 进行分词
-    const tokens = tokenizer.tokenize(text);
-
-    let annotatedHtml = '';
-
-    // 遍历分词结果，构建带 <ruby> 标签的 HTML
-    for (const token of tokens) {
-        const surface = token.surface_form; // 原始文本 (汉字或假名)
-        const reading = token.reading;      // 读音 (全大写片假名)
-        const partOfSpeech = token.pos;     // 词性
-
-        // 符号、助词、助动词、接尾词等通常不需要标注，直接保留原始文本
-        if (partOfSpeech === '記号' || partOfSpeech === '助詞' || partOfSpeech === '助動詞' || partOfSpeech === '接尾辞') {
-            annotatedHtml += surface;
-        } else if (reading && reading !== '*') {
-            // 将片假名读音转换为平假名，用于标注
-            const hiraganaReading = katakanaToHiragana(reading);
-
-            // 构建 <ruby> 标签：<ruby>主词<rt>注音</rt></ruby>
-            annotatedHtml += `<ruby>${surface}<rt>${hiraganaReading}</rt></ruby>`;
-        } else {
-            // 其他情况（如英文、特殊名词等），直接添加原始文本
-            annotatedHtml += surface;
-        }
-    }
-
-    // 返回带 <ruby> 标签的 HTML
-    res.json({ html: annotatedHtml });
-});
-
-
-// 辅助函数：将片假名转换为平假名
-function katakanaToHiragana(katakana) {
-    return katakana.replace(/[\u30a1-\u30f6]/g, function(match) {
-        // 片假名的 Unicode 编码减去 0x60 即可得到对应的平假名编码
-        const charCode = match.charCodeAt(0) - 0x60;
-        return String.fromCharCode(charCode);
-    });
-}
-app.post('/translate', async (req, res) => {
     const japaneseText = req.body.text;
-
     if (!japaneseText) {
-        return res.status(400).json({ error: 'Missing Japanese text' });
+        return res.status(400).json({ error: 'Missing Japanese text for Furigana conversion.' });
     }
 
     try {
-        // **这里是调用实际翻译 API 的代码**
-        // 假设我们使用一个名为 translateText 的函数
-        const translatedText = await translateText(japaneseText, 'zh'); // 目标语言设为中文 'zh'
+        const tokens = tokenizer.tokenize(japaneseText);
+        let resultHtml = '';
 
-        res.json({ translation: translatedText });
+        tokens.forEach(token => {
+            const surface = token.surface_form;
+            const reading = token.reading; // 片假名读音
 
-    } catch (error) {
-        console.error('Translation error:', error);
-        res.status(500).json({ error: 'Failed to perform translation' });
-    }
-})
-const translate = require('@vitalets/google-translate-api');
-// ... 其他 require 语句（如 express, path 等）
-// 1. 替换导入语句
-const translate = require('translate');
+            // 检查是否是汉字且有平假名读音
+            if (token.pos === '名詞' || token.pos === '動詞' || token.pos === '形容詞' || token.pos === '副詞') {
+                 if (reading && reading !== surface) {
+                    // 将片假名转换为平假名 (Furigana)
+                    const furigana = reading.replace(/[\u30a1-\u30f6]/g, function(match) {
+                        const code = match.charCodeAt(0) - 0x60;
+                        return String.fromCharCode(code);
+                    });
+                    
+                    // 使用 <ruby> 标签格式化
+                    resultHtml += `<ruby>${surface}<rt>${furigana}</rt></ruby>`;
+                    return;
+                }
+            }
+            // 否则，直接添加原始文本
+            resultHtml += surface;
+        });
 
-// 2. 配置翻译源 (使用 Google 作为默认引擎)
-translate.engine = 'google'; 
-translate.from = 'ja'; 
-
-// 3. 修改翻译路由的调用逻辑
-app.post('/translate', async (req, res) => {
-    const japaneseText = req.body.text; 
-    // ... 检查文本的代码保持不变
-
-    try {
-        // 调用新的翻译库：目标语言设为 'zh'
-        const translatedText = await translate(japaneseText, { to: 'zh' });
-        
-        // 成功返回翻译结果
-        res.json({ translation: translatedText });
+        res.json({ html: resultHtml });
 
     } catch (error) {
-        console.error('Translation API error (new library):', error);
-        res.status(500).json({ error: 'Failed to perform translation (via new library).' });
+        console.error('Furigana conversion error:', error);
+        res.status(500).json({ error: 'Furigana conversion failed.' });
     }
 });
+
+// --- 移除 /translate 路由（由前端直接处理） ---
+// app.post('/translate', async (req, res) => { ... });
+// --------------------------------------------------
+
+// 导出 app 实例（如果需要）
+// module.exports = app;

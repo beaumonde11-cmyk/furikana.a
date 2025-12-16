@@ -80,3 +80,34 @@ async function translateJapanese() {
         outputDiv.innerHTML = '网络请求失败。';
     }
 }
+async function translateJapanese() {
+    const text = document.getElementById('japanese-input-translate').value;
+    const outputDiv = document.getElementById('chinese-output');
+    
+    if (!text.trim()) {
+        outputDiv.innerHTML = '请输入文本！';
+        return;
+    }
+
+    outputDiv.innerHTML = '正在调用翻译服务...';
+
+    try {
+        const response = await fetch('/translate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: text })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            outputDiv.innerHTML = `**中文翻译:**<br>${data.translation}`;
+        } else {
+            outputDiv.innerHTML = `翻译失败: ${data.error || '未知错误'}`;
+        }
+
+    } catch (error) {
+        outputDiv.innerHTML = '网络请求失败或服务器无响应。';
+        console.error('Fetch error:', error);
+    }
+}
