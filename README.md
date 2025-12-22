@@ -1,78 +1,10 @@
-# 🇯🇵 日文学习工具：Furigana 注音与即时翻译服务
-
-## 🌟 项目简介 (Project Overview)
-
-本项目是一个功能完整的 Web 应用程序，专为日文学习者设计。它通过 Node.js 后端服务提供高精度的 **汉字注音（Furigana）** 功能，并集成纯前端调用，实现快速的**中文翻译**。
-
-本项目的核心目标是解决 Node.js 应用在云托管平台（如 Render）上部署时遇到的复杂文件路径和依赖加载问题。
-
-## 🚀 最终功能 (Features)
-
-* **汉字注音 (Furigana Annotation):** 对日文文本中的汉字进行精确分词，并标注假名（振假名/ふりがな）。
-* **即时中文翻译 (Instant Translation):** 将输入的日文文本快速翻译成中文。
-* **单一输入区 (Optimized UI):** 采用统一的输入界面，操作流畅高效。
-
----
-
-## 🛠️ 技术栈 (Technology Stack)
-
-| 模块 | 技术名称 | 核心用途 |
-| :--- | :--- | :--- |
-| **后端** | Node.js / Express | 提供 RESTful API 服务，处理静态文件。 |
-| **核心算法** | Kuromoji | 负责日文分词和注音。 |
-| **前端** | HTML5 / CSS3 / JavaScript | 构建用户界面，处理用户交互和 API 调用。 |
-| **部署** | Render (PaaS) | 持续集成与云端托管。 |
-
----
-
-## ⚙️ 本地安装与运行 (Local Setup)
-
-您可以在本地环境中快速启动并运行本项目。
-
-### 1. 克隆仓库
-
-```bash
-git clone [您的GitHub仓库URL]
-cd [您的项目文件夹名]
-
-2. 安装依赖 (接续上一部分)
-Bash
-
-# 安装 Express, Kuromoji 等所有依赖
-npm install
-3. 启动服务器
-Bash
-
-# 启动服务器，使用 package.json 中定义的 start 脚本
-npm start
-4. 访问应用
-服务器启动后，打开浏览器访问：
-
-http://localhost:3000
-💡 部署挑战与解决方案 (Key Deployment Insights)
-本项目在部署到 Render 平台时，遇到了两个关键的配置和路径难题，这些经验对于任何 Node.js 云部署项目都非常有价值：
-
-1. Kuromoji 字典路径问题 (Pathing Issue)
-问题： 在本地环境中运行正常，但在 Render 的 Linux 云环境中，Kuromoji 无法找到其字典文件 (dict)，导致服务功能失效。
-
-解决方案： 放弃使用简单的相对路径，改为使用 Node.js 的 path 模块构造绝对路径，确保跨平台兼容性。
-
-JavaScript
-
-// server.js 修复后的核心代码片段
-const path = require('path');
-
-kuromoji.builder({
-    dicPath: path.join(__dirname, 'node_modules', 'kuromoji', 'dict') 
-}).build((err, tokenizer) => {
-    // ... 初始化成功逻辑
-});
-2. 端口监听与路由匹配
-端口监听： 确保服务器使用 process.env.PORT 来动态获取 Render 分配的端口，而不是硬编码的端口。
-
-路由统一： 确保前端 fetch('/furigana') 调用与后端 app.post('/furigana') 定义的 API 路径完全一致，避免 404 错误。
-
-
-
-📄 许可证 (License)
-本项目采用 MIT 许可证。
+🇯🇵 日文学习全能助手 (Japanese Study Helper)本项目是一个专为日语学习者打造的 Web 工具，集成了汉字注音（Furigana）、即时中文翻译以及**智能语音合成（TTS）**三大核心功能。🌟 核心功能 (Features)汉字注音 (Furigana): 利用 Kuromoji 引擎精准识别日文汉字，并标注平假名。即时翻译 (Translation): 一键将日文文本翻译为中文，方便对比理解。智能发音 (Text-to-Speech): * 通过协议直连 Edge TTS，发音自然。安全防护: 实时监测字数，限制单次朗读不超过 500 字，确保系统运行流畅。自动恢复: 当文本从超长状态减删至 500 字内时，朗读功能自动激活并恢复。交互优化: 包含实时字数统计和超长红色警告提示。🛠️ 技术栈 (Technology Stack)模块技术名称说明后端Node.js / Express核心逻辑与 API 路由管理。注音引擎Kuromoji日文分词与假名转换。发音技术Edge TTS Protocol采用 WebSocket 直连微软语音合成接口。前端HTML5 / CSS3 / Vanilla JS轻量级原生开发，无需沉重的框架。⚙️ 本地环境配置 (Local Setup)要在你的电脑（如 C 盘当前目录）运行此项目，请按照以下步骤操作：1. 准备环境确保你的电脑已安装 Node.js (推荐 v18 或更高版本)。2. 安装依赖在项目根目录下打开终端，运行：Bashnpm install express kuromoji ws uuid
+3. 运行项目执行以下命令启动服务器：Bashnpm start
+或者直接运行：Bashnode server.js
+成功后，在浏览器访问：http://localhost:3000📂 项目结构 (Project Structure)Plaintext/furigana-app
+├── server.js            # 后端核心逻辑 (注音接口 + TTS 路由)
+├── package.json         # 项目配置文件与依赖管理
+├── /public              # 前端静态资源目录
+│   └── index.html       # 用户交互界面 (含字数监控与翻译逻辑)
+└── /node_modules        # 依赖包 (自动生成)
+⚠️ 开发注意事项 (Important Notes)字数限制: 为了防止内存溢出和接口被封禁，发音功能严格限制在 500 字以内。网络要求: 翻译和发音功能需要连接互联网才能正常工作。路径兼容性: server.js 中使用了 path.join 修复了 kuromoji 字典在某些环境（如 Linux 容器）下路径报错的问题。📈 未来规划 (Roadmap)[ ] 增加多音色选择（男声/女声）。[ ] 增加生词本保存功能。[ ] 导出注音后的 PDF 或图片。
