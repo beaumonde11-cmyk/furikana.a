@@ -1,102 +1,85 @@
-// 导入所需模块
 const express = require('express');
-const path = require('path'); // 确保引入 path 模块
-const kuromoji = require('kuromoji'); // 用于日文分词和注音
-
-// --- 移除所有翻译库的 require --- 
-// const translate = require('...');
-// const BaiduTranslate = require('...'); 
-// ----------------------------------
+const path = require('path');
+const kuromoji = require('kuromoji');
+const WebSocket = require('ws'); 
+const { v4: uuidv4 } = require('uuid');
 
 const app = express();
-const port = process.env.PORT || 3000; // 监听的端口
+const port = process.env.PORT || 3000;
 
-// 确保 Express 可以解析 JSON 格式的请求体
 app.use(express.json());
-
-// 静态文件服务：将 'public' 目录设置为静态资源目录
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Kuromoji 构建器（只需要初始化一次）
+// --- 模块 1: Kuromoji 初始化 (保留绝对路径修复) ---
 let tokenizer = null;
-
-// 使用 path.join 确保跨平台的字典路径兼容性，这是解决 Render 404 问题的关键修正
 const dicPath = path.join(__dirname, 'node_modules', 'kuromoji', 'dict'); 
-
 kuromoji.builder({ dicPath: dicPath }).build((err, t) => {
-    if (err) {
-        // 如果出错，打印更详细的信息
-        console.error('Kuromoji Initialization Error:', err);
-        console.error('Attempted dictionary path:', dicPath);
-        // Kuromoji 失败不应该阻止服务器启动，但会导致 /furigana 不可用
-        // 为了确保应用启动，我们继续，但会记录错误。
-    } else {
+    if (err) console.error('Kuromoji 初始化失败:', err);
+    else {
         tokenizer = t;
-        console.log('Kuromoji tokenizer initialized.');
+        console.log('Kuromoji 字典加载成功');
     }
-    
-    // Kuromoji 尝试初始化后，启动 Express 服务器
-    app.listen(port, () => {
-        console.log(`Server running at http://localhost:${port}`);
-    });
 });
 
-
-// 根路由：返回 index.html
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// Furigana 注音转换 API 路由
+// --- 模块 2: 注音路由 ---
 app.post('/furigana', (req, res) => {
-    // 检查 tokenizer 是否成功初始化
-    if (!tokenizer) {
-        // 如果初始化失败，返回 503 错误
-        return res.status(503).json({ error: 'Furigana service is not ready. Kuromoji initialization failed.' });
-    }
-
     const japaneseText = req.body.text;
-    if (!japaneseText) {
-        return res.status(400).json({ error: 'Missing Japanese text for Furigana conversion.' });
-    }
+    if (!tokenizer) return res.status(500).json({ error: '分词器未就绪' });
+    if (!japaneseText) return res.json({ html: '' });
 
     try {
         const tokens = tokenizer.tokenize(japaneseText);
         let resultHtml = '';
-
         tokens.forEach(token => {
             const surface = token.surface_form;
-            const reading = token.reading; // 片假名读音
-
-            // 检查是否是汉字且有平假名读音
-            if (token.pos === '名詞' || token.pos === '動詞' || token.pos === '形容詞' || token.pos === '副詞' || token.pos_detail_1 === '数詞') {
-                 if (reading && reading !== surface) {
-                    // 将片假名转换为平假名 (Furigana)
-                    const furigana = reading.replace(/[\u30a1-\u30f6]/g, function(match) {
-                        const code = match.charCodeAt(0) - 0x60;
-                        return String.fromCharCode(code);
-                    });
-                    
-                    // 使用 <ruby> 标签格式化
-                    resultHtml += `<ruby>${surface}<rt>${furigana}</rt></ruby>`;
-                    return;
-                }
+            const reading = token.reading;
+            if (reading && reading !== surface && /[\u4e00-\u9fa5]/.test(surface)) {
+                const furigana = reading.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
+                resultHtml += `<ruby>${surface}<rt>${furigana}</rt></ruby>`;
+            } else {
+                resultHtml += surface;
             }
-            // 否则，直接添加原始文本
-            resultHtml += surface;
         });
-
         res.json({ html: resultHtml });
-
-    } catch (error) {
-        console.error('Furigana conversion error:', error);
-        res.status(500).json({ error: 'Furigana conversion failed.' });
-    }
+    } catch (e) { res.status(500).send(e.message); }
 });
 
-// --- 移除 /translate 路由（由前端直接处理） ---
-// app.post('/translate', async (req, res) => { ... });
-// --------------------------------------------------
+// --- 模块 3: 发音路由 (带 500 字上限拦截) ---
+app.get('/speak', async (req, res) => {
+    const text = req.query.text;
+    if (!text) return res.status(400).send("No text");
+    
+    // 安全屏障：禁止超过 500 字
+    if (text.length > 500) {
+        return res.status(400).send("文本过长，限500字以内");
+    }
 
-// 导出 app 实例（如果需要）
-// module.exports = app;
+    const endpoint = `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4`;
+    const ws = new WebSocket(endpoint);
+    let audioData = Buffer.alloc(0);
+
+    ws.on('open', () => {
+        const requestId = uuidv4().replace(/-/g, '');
+        let lang = /[\u3040-\u309F\u30A0-\u30FF]/.test(text) ? 'ja-JP' : 'zh-CN';
+        let voice = lang === 'ja-JP' ? 'ja-JP-NanamiNeural' : 'zh-CN-XiaoxiaoNeural';
+
+        ws.send(`X-Timestamp:${Date.now()}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n{"context":{"synthesis":{"audio":{"outputFormat":"audio-24khz-48kbitrate-mono-mp3"}}}}`);
+        const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${lang}'><voice name='${voice}'>${text}</voice></speak>`;
+        ws.send(`X-RequestId:${requestId}\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:${Date.now()}\r\nPath:ssml\r\n\r\n${ssml}`);
+    });
+
+    ws.on('message', (data, isBinary) => {
+        if (isBinary) {
+            const index = data.indexOf(Buffer.from([0x50, 0x61, 0x74, 0x68, 0x3a, 0x61, 0x75, 0x64, 0x69, 0x6f, 0x0d, 0x0a]));
+            if (index !== -1) audioData = Buffer.concat([audioData, data.slice(index + 12)]);
+        } else if (data.toString().includes('turn.end')) {
+            res.set({ 'Content-Type': 'audio/mpeg' });
+            res.send(audioData);
+            ws.close();
+        }
+    });
+
+    ws.on('error', () => { if(!res.headersSent) res.status(500).send("TTS Error"); });
+});
+
+app.listen(port, () => console.log(`全功能助手启动: http://localhost:${port}`));
