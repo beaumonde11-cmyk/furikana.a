@@ -49,7 +49,7 @@ app.get('/speak', async (req, res) => {
 
     const timeout = setTimeout(() => {
         if (ws.readyState !== WebSocket.CLOSED) ws.terminate();
-    }, 30000);
+    }, 60000); // 增加超时到60秒
 
     ws.on('open', () => {
         const requestId = uuidv4().replace(/-/g, '');
@@ -72,8 +72,9 @@ app.get('/speak', async (req, res) => {
         }
     });
 
-    ws.on('error', () => {
+    ws.on('error', (err) => {
         clearTimeout(timeout);
+        console.error('WS Error:', err);
         if(!res.headersSent) res.status(502).send("Gateway Error");
     });
 });
