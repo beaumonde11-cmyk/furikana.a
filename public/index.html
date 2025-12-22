@@ -1,67 +1,93 @@
-const express = require('express');
-const path = require('path');
-const kuromoji = require('kuromoji');
-const WebSocket = require('ws'); 
-const { v4: uuidv4 } = require('uuid');
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>日文全能助手</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 30px auto; padding: 20px; background: #f0f2f5; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { color: #1a73e8; text-align: center; }
+        textarea { width: 100%; height: 150px; padding: 15px; border: 2px solid #ddd; border-radius: 8px; font-size: 18px; box-sizing: border-box; transition: border 0.3s; }
+        textarea:focus { border-color: #1a73e8; outline: none; }
+        .status-row { display: flex; justify-content: space-between; margin: 10px 0; min-height: 25px; }
+        #warning { color: #d93025; font-weight: bold; visibility: hidden; }
+        #char-count { color: #5f6368; }
+        .btn-group { display: flex; gap: 10px; }
+        button { flex: 1; padding: 12px; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; transition: opacity 0.2s; }
+        #btn-furi { background: #1a73e8; }
+        #btn-trans { background: #f9ab00; color: #202124; }
+        #btn-speak { background: #34a853; }
+        button:hover { opacity: 0.9; }
+        button:disabled { background: #bdc1c6 !important; cursor: not-allowed; }
+        .display-area { margin-top: 25px; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background: #fafafa; min-height: 100px; line-height: 2.2; font-size: 26px; }
+        ruby rt { color: #d93025; font-size: 0.5em; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🇯🇵 日文全能学习助手</h1>
+        <textarea id="main-input" oninput="monitorText()" placeholder="请输入日语文章..."></textarea>
+        
+        <div class="status-row">
+            <div id="warning">⚠️ 超过500字，已禁用朗读功能</div>
+            <div id="char-count">0 / 500</div>
+        </div>
 
-const app = express();
-const port = process.env.PORT || 3000;
+        <div class="btn-group">
+            <button id="btn-furi" onclick="doFurigana()">汉字注音</button>
+            <button id="btn-trans" onclick="doTranslate()">中文翻译</button>
+            <button id="btn-speak" onclick="doSpeak()">全文朗读</button>
+        </div>
 
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+        <div id="output" class="display-area">结果将显示在这里...</div>
+    </div>
 
-let tokenizer = null;
-const dicPath = path.join(__dirname, 'node_modules', 'kuromoji', 'dict'); 
-kuromoji.builder({ dicPath: dicPath }).build((err, t) => {
-    if (err) console.error('初始化失败:', err);
-    else tokenizer = t;
-});
+    <script>
+        const input = document.getElementById('main-input');
+        const countDisplay = document.getElementById('char-count');
+        const warning = document.getElementById('warning');
+        const speakBtn = document.getElementById('btn-speak');
 
-app.post('/furigana', (req, res) => {
-    const text = req.body.text;
-    if (!tokenizer) return res.status(500).json({ error: '分词器未就绪' });
-    try {
-        const tokens = tokenizer.tokenize(text || "");
-        let html = '';
-        tokens.forEach(token => {
-            const surface = token.surface_form;
-            const reading = token.reading;
-            if (reading && reading !== surface && /[\u4e00-\u9fa5]/.test(surface)) {
-                const furi = reading.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
-                html += `<ruby>${surface}<rt>${furi}</rt></ruby>`;
-            } else html += surface;
-        });
-        res.json({ html });
-    } catch (e) { res.status(500).send(e.message); }
-});
+        // 核心监控逻辑
+        function monitorText() {
+            const len = input.value.length;
+            countDisplay.innerText = `${len} / 500`;
 
-app.get('/speak', async (req, res) => {
-    const text = req.query.text;
-    if (!text || text.length > 500) return res.status(400).send("Text too long");
-
-    const endpoint = `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4`;
-    const ws = new WebSocket(endpoint);
-    let audioData = Buffer.alloc(0);
-
-    ws.on('open', () => {
-        const requestId = uuidv4().replace(/-/g, '');
-        let lang = /[\u3040-\u309F\u30A0-\u30FF]/.test(text) ? 'ja-JP' : 'zh-CN';
-        let voice = lang === 'ja-JP' ? 'ja-JP-NanamiNeural' : 'zh-CN-XiaoxiaoNeural';
-        ws.send(`X-Timestamp:${Date.now()}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n{"context":{"synthesis":{"audio":{"outputFormat":"audio-24khz-48kbitrate-mono-mp3"}}}}`);
-        const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${lang}'><voice name='${voice}'>${text}</voice></speak>`;
-        ws.send(`X-RequestId:${requestId}\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:${Date.now()}\r\nPath:ssml\r\n\r\n${ssml}`);
-    });
-
-    ws.on('message', (data, isBinary) => {
-        if (isBinary) {
-            const index = data.indexOf(Buffer.from([0x50, 0x61, 0x74, 0x68, 0x3a, 0x61, 0x75, 0x64, 0x69, 0x6f, 0x0d, 0x0a]));
-            if (index !== -1) audioData = Buffer.concat([audioData, data.slice(index + 12)]);
-        } else if (data.toString().includes('turn.end')) {
-            res.set({ 'Content-Type': 'audio/mpeg' });
-            res.send(audioData);
-            ws.close();
+            if (len > 500) {
+                countDisplay.style.color = 'red';
+                warning.style.visibility = 'visible';
+                speakBtn.disabled = true;
+            } else {
+                countDisplay.style.color = '#5f6368';
+                warning.style.visibility = 'hidden';
+                speakBtn.disabled = false;
+            }
         }
-    });
-});
 
-app.listen(port, () => console.log(`Running: http://localhost:${port}`));
+        async function doFurigana() {
+            const res = await fetch('/furigana', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ text: input.value })
+            });
+            const data = await res.json();
+            document.getElementById('output').innerHTML = data.html || "无内容";
+        }
+
+        async function doTranslate() {
+            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=zh-CN&dt=t&q=${encodeURIComponent(input.value)}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            document.getElementById('output').innerText = data[0].map(x => x[0]).join('');
+        }
+
+        async function doSpeak() {
+            if (!input.value) return;
+            speakBtn.disabled = true;
+            const audio = new Audio(`/speak?text=${encodeURIComponent(input.value)}&v=${Date.now()}`);
+            audio.play().catch(e => alert("播放失败，请重试"));
+            audio.onended = () => { if(input.value.length <= 500) speakBtn.disabled = false; };
+        }
+    </script>
+</body>
+</html>
