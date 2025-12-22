@@ -1,7 +1,7 @@
 {
-  "name": "furigana-app-pro",
-  "version": "1.0.0",
-  "description": "Japanese Learning Tool with TTS and Translation",
+  "name": "furigana-app",
+  "version": "1.0.1",
+  "description": "Japanese study tool with TTS",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
